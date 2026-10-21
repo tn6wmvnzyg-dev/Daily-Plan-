@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Tagesplan PWA</title>
+
+  <!-- PWA Meta Tags & iOS Standalone -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tagesplan">
+  <meta name="theme-color" content="#0f172a" id="theme-color-meta">
+
+  <!-- Manifest als Data-URI -->
+  <link rel="manifest" href="data:application/manifest+json;utf-8,%7B%22name%22%3A%22Tagesplan%22%2C%22short_name%22%3A%22Tagesplan%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%7D">
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-card: #273549;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --danger: #f43f5e;
+      --warning: #f59e0b;
+      --success: #10b981;
+      --radius: 18px;
+      --safe-top: env(safe-area-inset-top, 20px);
+      --safe-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    body.light {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-card: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #0284c7;
+      --accent-glow: rgba(2, 132, 199, 0.1);
+    }
+
+    /* Kategorie-Farben */
+    .cat-Trading { background: #059669; color: #fff; }
+    .cat-Sport { background: #d97706; color: #fff; }
+    .cat-Brand { background: #7c3aed; color: #fff; }
+    .cat-Lesen { background: #0284c7; color: #fff; }
+    .cat-Selbstentwicklung { background: #4f46e5; color: #fff; }
+    .cat-Meditation { background: #0d9488; color: #fff; }
+    .cat-Essen { background: #e11d48; color: #fff; }
+    .cat-SelfCare { background: #db2777; color: #fff; }
+    .cat-Termin { background: #b91c1c; color: #fff; }
+    .cat-Pause { background: #475569; color: #fff; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; padding-top: var(--safe-top); padding-bottom: calc(var(--safe-bottom) + 30px); transition: background-color 0.25s, color 0.25s; overflow-x: hidden; }
+    .container { max-width: 480px; margin: 0 auto; padding: 12px 16px; }
+
+    /* Header */
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.5px; }
+    .header-btns { display: flex; gap: 8px; }
+    .icon-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: transform 0.1s active; }
+    .icon-btn:active { transform: scale(0.92); }
+
+    /* Wochenleiste */
+    .week-bar { display: flex; justify-content: space-between; background: var(--surface); padding: 6px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 16px; gap: 4px; }
+    .day-pill { flex: 1; text-align: center; padding: 8px 2px; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+    .day-pill.active { background: var(--accent); color: #fff; font-weight: bold; box-shadow: 0 4px 12px var(--accent-glow); }
+    .day-pill .dow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; display: block; opacity: 0.8; }
+    .day-pill.active .dow { opacity: 1; }
+    .day-pill .dom { font-size: 0.95rem; font-weight: 700; display: block; margin-top: 2px; }
+
+    /* Banner für Wecker / Schlaf */
+    .alert-banner { background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(220, 38, 38, 0.18)); border: 1px solid var(--warning); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; display: none; }
+    .alert-banner.show { display: block; animation: slideDown 0.3s ease; }
+    .alert-banner .title { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; color: #fbbf24; }
+    .alert-banner .desc { font-size: 0.82rem; margin-top: 4px; color: var(--text); opacity: 0.9; line-height: 1.35; }
+
+    /* "Jetzt" Karte */
+    .now-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; position: relative; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .now-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--accent); }
+    .now-tag { font-size: 0.7rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; color: var(--accent); }
+    .now-title { font-size: 1.3rem; font-weight: 800; margin: 4px 0 6px 0; }
+    .now-time-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; color: var(--text-muted); }
+    .countdown-badge { background: var(--accent-glow); color: var(--accent); font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 0.82rem; }
+    .next-preview { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 0.82rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+    .next-preview strong { color: var(--text); }
+
+    /* Eingabefeld Termin ansagen */
+    .ai-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 18px; }
+    .ai-box-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .ai-form { display: flex; gap: 8px; }
+    .ai-input { flex: 1; background: var(--surface-card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; color: var(--text); font-size: 0.9rem; outline: none; }
+    .ai-input:focus { border-color: var(--accent); }
+    .ai-btn { background: var(--accent); color: #fff; border: none; border-radius: 12px; padding: 0 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .mic-btn { background: var(--surface-card); border: 1px solid var(--border); color: var(--text); border-radius: 12px; width: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .mic-btn.listening { background: var(--danger); color: white; animation: pulse 1s infinite; }
+    .ai-status { font-size: 0.75rem; margin-top: 6px; color: var(--text-muted); min-height: 16px; }
+
+    /* Timeline */
+    .section-head { font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .timeline { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+    .task-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; transition: transform 0.15s, opacity 0.2s; position: relative; }
+    .task-card.is-current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+    .task-card.is-done { opacity: 0.5; }
+    .task-card.is-done .t-name { text-decoration: line-through; }
+    .cat-indicator { width: 4px; height: 38px; border-radius: 4px; flex-shrink: 0; }
+    .t-main { flex: 1; min-width: 0; }
+    .t-time { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); }
+    .t-name { font-size: 0.96rem; font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .t-badge { font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; display: inline-block; margin-top: 4px; text-transform: uppercase; }
+    .t-actions { display: flex; align-items: center; gap: 6px; }
+    .chk-btn, .skip-btn { background: var(--surface-card); border: 1px solid var(--border); width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 0.95rem; }
+    .chk-btn.checked { background: var(--success); color: white; border-color: var(--success); }
+
+    /* Heute nicht im Plan (Dropped / Skipped) */
+    .dropped-section { background: rgba(244, 63, 94, 0.08); border: 1px dashed rgba(244, 63, 94, 0.3); border-radius: var(--radius); padding: 14px; margin-bottom: 24px; }
+    .dropped-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .dropped-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; padding: 8px 10px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); }
+    .restore-btn { background: var(--surface-card); border: 1px solid var(--border); padding: 4px 10px; border-radius: 8px; color: var(--accent); font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+
+    /* Modal für Settings & API Key */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
+    .modal-overlay.show { display: flex; }
+    .modal-content { background: var(--surface); border-top-left-radius: 24px; border-top-right-radius: 24px; width: 100%; max-width: 480px; padding: 20px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-title { font-size: 1.15rem; font-weight: 800; }
+    .close-btn { background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; color: var(--text-muted); }
+    .form-input { width: 100%; background: var(--surface-card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; color: var(--text); font-size: 0.9rem; }
+    .btn-full { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+    .btn-secondary { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header>
+    <div>
+      <div style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:var(--accent);" id="currentDateStr">Mittwoch, 21. Okt</div>
+      <h1>Tagesplan</h1>
+    </div>
+    <div class="header-btns">
+      <button class="icon-btn" id="themeToggle" title="Design wechseln">🌓</button>
+      <button class="icon-btn" id="settingsBtn" title="Einstellungen">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Wochenleiste (Mo–So) -->
+  <nav class="week-bar" id="weekBar" aria-label="Wochentag auswählen"></nav>
+
+  <!-- Wecker- / Schlafwarnung Banner -->
+  <div class="alert-banner" id="alertBanner">
+    <div class="title" id="alertTitle">⏰ Wecker-Hinweis</div>
+    <div class="desc" id="alertDesc">Früher Termin erfordert Wecker um 06:15 Uhr.</div>
+  </div>
+
+  <!-- "Jetzt" Karte -->
+  <section class="now-card" id="nowCard">
+    <div class="now-tag">Aktuell am Laufen</div>
+    <div class="now-title" id="nowTitle">Freizeit & Erholung</div>
+    <div class="now-time-row">
+      <span id="nowTimes">--:-- – --:--</span>
+      <span class="countdown-badge" id="nowCountdown">-- Min. übrig</span>
+    </div>
+    <div class="next-preview">
+      <span>Nächster Block:</span>
+      <strong id="nextTitle">--</strong>
+    </div>
+  </section>
+
+  <!-- Termin ansagen (Gemini API + Lokaler intelligenter Parser) -->
+  <section class="ai-box">
+    <div class="ai-box-title">
+      <span>🎙️ Termin ansagen / Plan ändern</span>
+      <span style="font-size:0.7rem; color:var(--accent); cursor:pointer;" onclick="fillExample('Morgen 10 bis 11 Zahnarzt, 20 min Fahrt')">Beispiel 1</span>
+    </div>
+    <form class="ai-form" id="aiForm" onsubmit="handleAiSubmit(event)">
+      <button type="button" class="mic-btn" id="micBtn" title="Spracheingabe">🎤</button>
+      <input type="text" class="ai-input" id="aiInput" placeholder="z. B. 'Morgen 10 bis 11 Zahnarzt, 20 min Fahrt' oder 'heute kein Gym'" autocomplete="off" />
+      <button type="submit" class="ai-btn" id="aiSubmitBtn">Senden</button>
+    </form>
+    <div class="ai-status" id="aiStatus"></div>
+  </section>
+
+  <!-- Tageszeitleiste -->
+  <div class="section-head">
+    <span id="timelineTitle">Zeitplan</span>
+    <span style="font-size: 0.75rem; font-weight: normal;" id="blockCount">0 Blöcke</span>
+  </div>
+  <main class="timeline" id="timelineList"></main>
+
+  <!-- Heute nicht im Plan (Dropped / Skipped) -->
+  <section class="dropped-section" id="droppedSection" style="display:none;">
+    <div style="font-size:0.82rem; font-weight:800; color:var(--danger); display:flex; justify-content:space-between;">
+      <span>🚫 HEUTE NICHT IM PLAN (VERDRÄNGT / AUSGELASSEN)</span>
+      <span id="droppedCount">0</span>
+    </div>
+    <div class="dropped-list" id="droppedList"></div>
+  </section>
+</div>
+
+<!-- Modal für Einstellungen -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Einstellungen</div>
+      <button class="close-btn" onclick="toggleSettings(false)">×</button>
+    </div>
+    <div class="form-group">
+      <label for="apiKeyInput">Gemini API Key (Optional)</label>
+      <input type="password" id="apiKeyInput" class="form-input" placeholder="AIzaSy..." />
+      <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+        Ist ein Key hinterlegt, verarbeitet Google Gemini jeden Freitext präzise als JSON. Ohne Key nutzt die App den integrierten lokalen Offline-Parser.
+      </p>
+    </div>
+    <button class="btn-full" onclick="saveSettings()">Einstellungen speichern</button>
+    <button class="btn-secondary" onclick="resetCurrentDay()">Diesen Tag auf Vorlage zurücksetzen</button>
+    <button class="btn-secondary" onclick="resetAllDefaults()" style="color:var(--danger);">Gesamte Woche auf Werkseinstellung</button>
+  </div>
+</div>
+
+<script>
+/**
+ * 1. DATENMODELL & WOCHENVORLAGEN
+ */
+const CATEGORIES = {
+  TRADING: 'Trading',
+  SPORT: 'Sport',
+  BRAND: 'Brand',
+  LESEN: 'Lesen',
+  DEV: 'Selbstentwicklung',
+  MED: 'Meditation',
+  ESSEN: 'Essen',
+  CARE: 'SelfCare',
+  TERMIN: 'Termin',
+  PAUSE: 'Pause'
+};
+
+const DOW_NAMES = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const DOW_FULL = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+
+// Hilfsfunktion Zeit-Minuten
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(m) {
+  const h = Math.floor(m / 60) % 24;
+  const min = Math.floor(m % 60);
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+// Grundgerüste & Templates
+const MORNING_CORE = [
+  { start: "07:00", end: "07:10", title: "Aufstehen, Wasser", category: CATEGORIES.CARE, fixed: true },
+  { start: "07:10", end: "07:30", title: "Meditation", category: CATEGORIES.MED, fixed: false },
+  { start: "07:30", end: "08:00", title: "Frühstück", category: CATEGORIES.ESSEN, fixed: true }
+];
+
+const EVENING_CORE = [
+  { start: "22:00", end: "22:20", title: "Self-Care (Duschen, Haut, Zähne)", category: CATEGORIES.CARE, fixed: true },
+  { start: "22:20", end: "22:30", title: "Meditation", category: CATEGORIES.MED, fixed: false },
+  { start: "22:30", end: "23:00", title: "Lesen (Roman)", category: CATEGORIES.LESEN, fixed: false },
+  { start: "23:00", end: "07:00", title: "Schlafen", category: CATEGORIES.CARE, fixed: true }
+];
+
+const WEEK_TEMPLATES = {
+  1: [ // Mo (Design-Tag)
+    ...MORNING_CORE,
+    { start: "08:00", end: "09:00", title: "Lesen Sachbuch", category: CATEGORIES.LESEN },
+    { start: "09:00", end: "10:30", title: "Brand: Moodboards", category: CATEGORIES.BRAND },
+    { start: "10:30", end: "10:45", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "10:45", end: "12:15", title: "Gym Push", category: CATEGORIES.SPORT },
+    { start: "12:15", end: "13:15", title: "Mittag", category: CATEGORIES.ESSEN },
+    { start: "13:15", end: "14:45", title: "Brand: Designs/Logo", category: CATEGORIES.BRAND },
+    { start: "14:45", end: "15:00", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "15:00", end: "17:00", title: "Trading (Levels, US Open, Journal)", category: CATEGORIES.TRADING },
+    { start: "17:00", end: "17:30", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "17:30", end: "18:30", title: "Wochenziele + Journaling", category: CATEGORIES.DEV },
+    { start: "18:30", end: "19:30", title: "Abendessen", category: CATEGORIES.ESSEN },
+    { start: "19:30", end: "22:00", title: "Freizeit", category: CATEGORIES.PAUSE },
+    ...EVENING_CORE
+  ],
+  2: [ // Di (Business-Tag)
+    ...MORNING_CORE,
+    { start: "08:00", end: "09:00", title: "Lesen", category: CATEGORIES.LESEN },
+    { start: "09:00", end: "10:30", title: "Brand: Lieferanten", category: CATEGORIES.BRAND },
+    { start: "10:30", end: "10:45", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "10:45", end: "11:45", title: "Laufen locker 5–6 km", category: CATEGORIES.SPORT },
+    { start: "11:45", end: "13:15", title: "Duschen + Mittag", category: CATEGORIES.ESSEN },
+    { start: "13:15", end: "14:45", title: "Brand: Kalkulation/Preise", category: CATEGORIES.BRAND },
+    { start: "14:45", end: "15:00", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "15:00", end: "17:00", title: "Trading", category: CATEGORIES.TRADING },
+    { start: "17:00", end: "17:30", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "17:30", end: "18:30", title: "Selbstentwicklung", category: CATEGORIES.DEV },
+    { start: "18:30", end: "19:30", title: "Abendessen", category: CATEGORIES.ESSEN },
+    { start: "19:30", end: "22:00", title: "Freizeit", category: CATEGORIES.PAUSE },
+    ...EVENING_CORE
+  ],
+  3: [ // Mi (Ortswechsel-Tag)
+    ...MORNING_CORE,
+    { start: "08:00", end: "10:30", title: "Café/Bibliothek: Lesen + Brand (Social Media)", category: CATEGORIES.BRAND },
+    { start: "10:30", end: "11:00", title: "Heimweg", category: CATEGORIES.PAUSE },
+    { start: "11:00", end: "12:30", title: "Gym Pull", category: CATEGORIES.SPORT },
+    { start: "12:30", end: "13:30", title: "Mittag", category: CATEGORIES.ESSEN },
+    { start: "13:30", end: "14:45", title: "Brand: Content", category: CATEGORIES.BRAND },
+    { start: "14:45", end: "15:00", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "15:00", end: "17:00", title: "Trading", category: CATEGORIES.TRADING },
+    { start: "17:00", end: "17:30", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "17:30", end: "18:30", title: "Selbstentwicklung", category: CATEGORIES.DEV },
+    { start: "18:30", end: "19:30", title: "Abendessen", category: CATEGORIES.ESSEN },
+    { start: "19:30", end: "22:00", title: "Freizeit", category: CATEGORIES.PAUSE },
+    ...EVENING_CORE
+  ],
+  4: [ // Do (Lern-Tag)
+    ...MORNING_CORE,
+    { start: "08:00", end: "09:00", title: "Lesen", category: CATEGORIES.LESEN },
+    { start: "09:00", end: "10:30", title: "Brand: offene Aufgaben", category: CATEGORIES.BRAND },
+    { start: "10:30", end: "10:45", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "10:45", end: "11:45", title: "Laufen Intervalle", category: CATEGORIES.SPORT },
+    { start: "11:45", end: "13:15", title: "Duschen + Mittag", category: CATEGORIES.ESSEN },
+    { start: "13:15", end: "14:45", title: "Selbstentwicklung Extrablock", category: CATEGORIES.DEV },
+    { start: "14:45", end: "15:00", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "15:00", end: "17:00", title: "Trading: Backtesting", category: CATEGORIES.TRADING },
+    { start: "17:00", end: "17:30", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "17:30", end: "18:30", title: "Selbstentwicklung", category: CATEGORIES.DEV },
+    { start: "18:30", end: "19:30", title: "Abendessen", category: CATEGORIES.ESSEN },
+    { start: "19:30", end: "22:00", title: "Freizeit", category: CATEGORIES.PAUSE },
+    ...EVENING_CORE
+  ],
+  5: [ // Fr (Kreativ-Tag)
+    ...MORNING_CORE,
+    { start: "08:00", end: "09:00", title: "Lesen", category: CATEGORIES.LESEN },
+    { start: "09:00", end: "10:30", title: "Brand: Fotos/Mockups", category: CATEGORIES.BRAND },
+    { start: "10:30", end: "10:45", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "10:45", end: "12:15", title: "Gym Beine", category: CATEGORIES.SPORT },
+    { start: "12:15", end: "13:15", title: "Mittag", category: CATEGORIES.ESSEN },
+    { start: "13:15", end: "14:45", title: "Brand: Videos", category: CATEGORIES.BRAND },
+    { start: "14:45", end: "15:00", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "15:00", end: "17:00", title: "Trading + Wochenrückblick", category: CATEGORIES.TRADING },
+    { start: "17:00", end: "18:30", title: "Freizeit", category: CATEGORIES.PAUSE },
+    { start: "18:30", end: "19:30", title: "Abendessen", category: CATEGORIES.ESSEN },
+    { start: "19:30", end: "22:00", title: "Freizeit", category: CATEGORIES.PAUSE },
+    ...EVENING_CORE
+  ],
+  6: [ // Sa (Markt-Tag)
+    ...MORNING_CORE,
+    { start: "08:00", end: "09:00", title: "Lesen Roman", category: CATEGORIES.LESEN },
+    { start: "09:00", end: "11:00", title: "Langer Lauf 10 km+", category: CATEGORIES.SPORT },
+    { start: "11:00", end: "12:00", title: "Brand: Konkurrenz online", category: CATEGORIES.BRAND },
+    { start: "12:00", end: "13:00", title: "Mittag", category: CATEGORIES.ESSEN },
+    { start: "13:00", end: "15:30", title: "Shops in Linz", category: CATEGORIES.BRAND },
+    { start: "15:30", end: "16:00", title: "Heimweg", category: CATEGORIES.PAUSE },
+    { start: "16:00", end: "17:00", title: "Trading: Wochenanalyse vor Weekly Close", category: CATEGORIES.TRADING },
+    { start: "17:00", end: "18:30", title: "Freizeit", category: CATEGORIES.PAUSE },
+    { start: "18:30", end: "19:30", title: "Abendessen", category: CATEGORIES.ESSEN },
+    { start: "19:30", end: "22:00", title: "Freizeit", category: CATEGORIES.PAUSE },
+    ...EVENING_CORE
+  ],
+  0: [ // So (Reset-Tag)
+    { start: "07:00", end: "07:10", title: "Aufstehen, Wasser", category: CATEGORIES.CARE, fixed: true },
+    { start: "07:10", end: "07:40", title: "Lange Meditation", category: CATEGORIES.MED, fixed: false },
+    { start: "07:40", end: "08:30", title: "Frühstück", category: CATEGORIES.ESSEN, fixed: true },
+    { start: "08:30", end: "09:00", title: "Pause", category: CATEGORIES.PAUSE },
+    { start: "09:00", end: "10:30", title: "Spaziergang", category: CATEGORIES.SPORT },
+    { start: "10:30", end: "12:00", title: "Lesen / frei", category: CATEGORIES.LESEN },
+    { start: "12:00", end: "13:00", title: "Mittag", category: CATEGORIES.ESSEN },
+    { start: "13:00", end: "15:00", title: "Meal Prep", category: CATEGORIES.ESSEN },
+    { start: "15:00", end: "17:00", title: "Frei", category: CATEGORIES.PAUSE },
+    { start: "17:00", end: "17:45", title: "Trading: Weekly High/Low + Watchlist", category: CATEGORIES.TRADING },
+    { start: "17:45", end: "18:30", title: "Wochenreview", category: CATEGORIES.DEV },
+    { start: "18:30", end: "19:30", title: "Abendessen", category: CATEGORIES.ESSEN },
+    { start: "19:30", end: "22:00", title: "Freizeit", category: CATEGORIES.PAUSE },
+    ...EVENING_CORE
+  ]
+};
+
+/**
+ * 2. APP STATE & LOCALSTORAGE
+ */
+let state = {
+  selectedDate: new Date(),
+  plans: {},        // key: YYYY-MM-DD -> { blocks: [], dropped: [] }
+  apiKey: localStorage.getItem('gemini_api_key') || '',
+  theme: localStorage.getItem('app_theme') || 'dark'
+};
+
+function getIsoDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function loadStorage() {
+  const raw = localStorage.getItem('daily_planner_state_v1');
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      state.plans = parsed.plans || {};
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+function saveStorage() {
+  localStorage.setItem('daily_planner_state_v1', JSON.stringify({ plans: state.plans }));
+}
+
+function ensureDayPlan(dateStr) {
+  if (!state.plans[dateStr]) {
+    const d = new Date(dateStr + 'T12:00:00');
+    const dow = d.getDay();
+    const template = (WEEK_TEMPLATES[dow] || WEEK_TEMPLATES[1]).map(b => ({
+      ...b,
+      id: 'b_' + Math.random().toString(36).substr(2, 9),
+      done: false
+    }));
+    state.plans[dateStr] = {
+      blocks: JSON.parse(JSON.stringify(template)),
+      dropped: []
+    };
+    saveStorage();
+  }
+  return state.plans[dateStr];
+}
+
+/**
+ * 3. INTELLIGENTE UMPLANUNG (ALGORITHMUS)
+ */
+function rescheduleDay(dateStr) {
+  const dayData = ensureDayPlan(dateStr);
+  let blocks = dayData.blocks;
+
+  // Trenne fixe Termine und variable Blöcke
+  // Termine haben Kategorie TERMIN oder fixed:true (Schlaf, etc.)
+  blocks.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+  const appointments = blocks.filter(b => b.category === CATEGORIES.TERMIN);
+  let regularBlocks = blocks.filter(b => b.category !== CATEGORIES.TERMIN);
+
+  if (appointments.length === 0) {
+    render();
+    return;
+  }
+
+  // Kollisionsauflösung gegen alle Termine (inkl. Fahrtzeiten)
+  let resolvedBlocks = [];
+  let droppedBlocks = [...dayData.dropped];
+
+  // Prioritätsstufen für Streichung, falls > 22:00 (1320 Min.)
+  // Unverrückbar: Trading, Sport, Essen, Termin, Schlafen
+  const isProtected = (cat) => [CATEGORIES.TRADING, CATEGORIES.SPORT, CATEGORIES.ESSEN, CATEGORIES.TERMIN].includes(cat);
+
+  for (let apt of appointments) {
+    const aptStart = timeToMinutes(apt.start);
+    const aptEnd = timeToMinutes(apt.end);
+
+    let nextRegular = [];
+    for (let blk of regularBlocks) {
+      const bStart = timeToMinutes(blk.start);
+      const bEnd = timeToMinutes(blk.end);
+
+      // Keine Überlappung
+      if (bEnd <= aptStart || bStart >= aptEnd) {
+        nextRegular.push(blk);
+        continue;
+      }
+
+      // Kollision! Block splitten oder verschieben
+      const dur = bEnd - bStart;
+
+      // Wenn Block lang genug (> 45 min) und vor Termin noch mind. 25 min Platz sind: Splitten
+      if (aptStart - bStart >= 25 && dur >= 50) {
+        // Teil 1 vor dem Termin
+        nextRegular.push({
+          ...blk,
+          id: 'b_' + Math.random().toString(36).substr(2, 7),
+          end: minutesToTime(aptStart)
+        });
+        // Teil 2 nach dem Termin verschoben
+        const remainDur = dur - (aptStart - bStart);
+        nextRegular.push({
+          ...blk,
+          id: 'b_' + Math.random().toString(36).substr(2, 7),
+          start: minutesToTime(aptEnd),
+          end: minutesToTime(aptEnd + remainDur)
+        });
+      } else {
+        // Komplett hinter den Termin schieben
+        nextRegular.push({
+          ...blk,
+          start: minutesToTime(aptEnd),
+          end: minutesToTime(aptEnd + dur)
+        });
+      }
+    }
+    regularBlocks = nextRegular;
+  }
+
+  // Blöcke hintereinander glattziehen (Kettenverschiebung)
+  // Alle Termine fixieren, Rest auffüllen
+  let combined = [...appointments];
+  regularBlocks.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+  let cursor = timeToMinutes("07:00");
+  for (let blk of regularBlocks) {
+    let dur = Math.max(15, timeToMinutes(blk.end) - timeToMinutes(blk.start));
+    let blkStart = Math.max(cursor, timeToMinutes(blk.start));
+
+    // Prüfe Kollision mit fixen Terminen
+    for (let apt of appointments) {
+      const aS = timeToMinutes(apt.start);
+      const aE = timeToMinutes(apt.end);
+      if (blkStart < aE && (blkStart + dur) > aS) {
+        blkStart = aE; // nach hinten rücken
+      }
+    }
+
+    let blkEnd = blkStart + dur;
+
+    // Verdrängungs-Regel: Wenn Block über 22:00 Uhr rutscht
+    if (blkEnd > timeToMinutes("22:00") && blk.title !== "Schlafen" && blk.category !== CATEGORIES.CARE) {
+      if (!isProtected(blk.category)) {
+        // Pause / Freizeit / Lesen / Selbstentwicklung fällt weg!
+        droppedBlocks.push({
+          ...blk,
+          dropReason: "Wegen Terminverspätung nach 22:00 verdrängt"
+        });
+        continue; // wird nicht in Plan übernommen!
+      } else {
+        // Geschützt: Trading, Sport, Essen bleiben, werden ggf. vor 22:00 eingepasst
+        blkStart = Math.min(blkStart, timeToMinutes("21:30"));
+        blkEnd = blkStart + dur;
+      }
+    }
+
+    cursor = blkEnd;
+    combined.push({
+      ...blk,
+      start: minutesToTime(blkStart),
+      end: minutesToTime(blkEnd)
+    });
+  }
+
+  // Schlafen und Abendroutine fix am Ende garantieren
+  combined.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+  dayData.blocks = combined;
+  dayData.dropped = droppedBlocks;
+  saveStorage();
+  render();
+}
+
+/**
+ * 4. TERMINPARSER (GEMINI API MIT ROBUSTEM OFFLINE-FALLBACK)
+ */
+async function processCommand(text) {
+  const statusEl = document.getElementById('aiStatus');
+  statusEl.textContent = 'Verarbeite Befehl...';
+
+  // 1. Prüfen, ob Gemini API Key hinterlegt ist
+  if (state.apiKey) {
+    try {
+      const res = await callGeminiApi(text);
+      if (res) {
+        applyParsedAction(res);
+        statusEl.textContent = `Erfolgreich ausgeführt: "${res.title || res.action}"`;
+        return;
+      }
+    } catch (e) {
+      console.warn("Gemini Error, wechsel auf Offline-Parser", e);
+    }
+  }
+
+  // 2. Offline-Regel-Parser (Funktioniert komplett ohne Key)
+  const parsed = offlineParse(text);
+  if (parsed) {
+    applyParsedAction(parsed);
+    statusEl.textContent = `Lokal ausgeführt: ${parsed.action} ${parsed.title || ''}`;
+  } else {
+    statusEl.textContent = 'Konnte Befehl nicht verstehen. Bsp: "Morgen 10 bis 11 Zahnarzt, 20 min Fahrt"';
+  }
+}
+
+function offlineParse(str) {
+  const lower = str.toLowerCase();
+  const currentIso = getIsoDate(state.selectedDate);
+
+  // Datum bestimmen (heute / morgen)
+  let targetDate = new Date(state.selectedDate);
+  if (lower.includes('morgen')) {
+    targetDate.setDate(targetDate.getDate() + 1);
+  }
+  const dateStr = getIsoDate(targetDate);
+
+  // Aktion: Auslassen / Löschen / Absagen
+  if (lower.includes('kein ') || lower.includes('auslassen') || lower.includes('streichen')) {
+    const match = lower.match(/(?:kein|keine|auslassen|streichen)\s+([a-zA-ZäöüÄÖÜß]+)/);
+    const keyword = match ? match[1] : '';
+    return { action: 'auslassen', keyword, date: dateStr };
+  }
+
+  if (lower.includes('absagen') || lower.includes('löschen') || lower.includes('entfernen')) {
+    const match = lower.match(/([a-zA-ZäöüÄÖÜß]+)\s+(?:absagen|löschen|entfernen)/);
+    const keyword = match ? match[1] : '';
+    return { action: 'löschen', keyword, date: dateStr };
+  }
+
+  // Neuer Termin: Suche nach Zeit & Fahrtzeit
+  // Bsp: "10 bis 11", "10:00 bis 11:30", "14 Uhr", "20 min Fahrt"
+  const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(?:bis|-|to)\s*(\d{1,2})(?::(\d{2}))?/);
+  const travelMatch = lower.match(/(\d{1,2})\s*(?:min|minuten)\s*(?:fahrt|weg|anfahrt)/);
+
+  if (timeMatch) {
+    let startH = parseInt(timeMatch[1]);
+    let startM = parseInt(timeMatch[2] || "0");
+    let endH = parseInt(timeMatch[3]);
+    let endM = parseInt(timeMatch[4] || "0");
+
+    let travelMin = travelMatch ? parseInt(travelMatch[1]) : 0;
+
+    // Titel extrahieren
+    let title = str
+      .replace(/morgen|heute/gi, '')
+      .replace(/\d{1,2}(?::\d{2})?\s*(?:bis|-)\s*\d{1,2}(?::\d{2})?/gi, '')
+      .replace(/\d{1,2}\s*(?:min|minuten)\s*(?:fahrt|weg|anfahrt)/gi, '')
+      .replace(/,\s*/g, ' ')
+      .trim();
+    if (!title) title = "Termin";
+
+    return {
+      action: 'termin',
+      date: dateStr,
+      start: `${String(startH).padStart(2,'0')}:${String(startM).padStart(2,'0')}`,
+      end: `${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`,
+      travelMinutes: travelMin,
+      title: title
+    };
+  }
+
+  return null;
+}
+
+async function callGeminiApi(userPrompt) {
+  const selectedDateStr = getIsoDate(state.selectedDate);
+  const prompt = `Du bist der Kalender-Assistent einer PWA. Heutiges Referenzdatum: ${selectedDateStr}.
+Analysiere die Benutzeranfrage und antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt ohne Markdown:
+Mögliche Schemas:
+1. Termin hinzufügen:
+{"action":"termin", "date":"YYYY-MM-DD", "title":"...", "start":"HH:MM", "end":"HH:MM", "travelMinutes": 0}
+2. Block auslassen:
+{"action":"auslassen", "date":"YYYY-MM-DD", "keyword":"..."}
+3. Termin löschen:
+{"action":"löschen", "date":"YYYY-MM-DD", "keyword":"..."}
+
+Eingabe: "${userPrompt}"`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${state.apiKey}`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+  });
+  const data = await resp.json();
+  const rawText = data.candidates[0].content.parts[0].text.trim();
+  const cleanJson = rawText.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleanJson);
+}
+
+function applyParsedAction(res) {
+  const dayData = ensureDayPlan(res.date);
+
+  if (res.action === 'termin') {
+    let tStart = timeToMinutes(res.start);
+    let tEnd = timeToMinutes(res.end);
+
+    // Fahrtzeit vorher als Block hinzufügen
+    if (res.travelMinutes && res.travelMinutes > 0) {
+      const fahrtStart = tStart - res.travelMinutes;
+      dayData.blocks.push({
+        id: 'b_' + Math.random().toString(36).substr(2, 7),
+        start: minutesToTime(Math.max(0, fahrtStart)),
+        end: minutesToTime(tStart),
+        title: `Fahrt zu ${res.title}`,
+        category: CATEGORIES.PAUSE,
+        fixed: true
+      });
+    }
+
+    // Termin selbst
+    dayData.blocks.push({
+      id: 'b_' + Math.random().toString(36).substr(2, 7),
+      start: minutesToTime(tStart),
+      end: minutesToTime(tEnd),
+      title: res.title,
+      category: CATEGORIES.TERMIN,
+      fixed: true
+    });
+
+    rescheduleDay(res.date);
+    checkEarlyWakeup(res.date);
+
+  } else if (res.action === 'auslassen') {
+    const kw = res.keyword.toLowerCase();
+    const idx = dayData.blocks.findIndex(b => b.title.toLowerCase().includes(kw) || b.category.toLowerCase().includes(kw));
+    if (idx !== -1) {
+      const removed = dayData.blocks.splice(idx, 1)[0];
+      dayData.dropped.push({ ...removed, dropReason: 'Vom Nutzer ausgelassen' });
+      saveStorage();
+      rescheduleDay(res.date);
+    }
+
+  } else if (res.action === 'löschen') {
+    const kw = res.keyword.toLowerCase();
+    dayData.blocks = dayData.blocks.filter(b => !b.title.toLowerCase().includes(kw));
+    dayData.dropped = dayData.dropped.filter(b => !b.title.toLowerCase().includes(kw));
+    saveStorage();
+    rescheduleDay(res.date);
+  }
+}
+
+/**
+ * 5. FRÜHER TERMIN & SCHLAFWARNUNG
+ */
+function checkEarlyWakeup(dateStr) {
+  const dayData = ensureDayPlan(dateStr);
+  const banner = document.getElementById('alertBanner');
+  const title = document.getElementById('alertTitle');
+  const desc = document.getElementById('alertDesc');
+
+  // Suche nach dem frühesten Termin
+  const terms = dayData.blocks.filter(b => b.category === CATEGORIES.TERMIN || b.title.startsWith('Fahrt'));
+  if (terms.length === 0) {
+    banner.classList.remove('show');
+    return;
+  }
+
+  let earliestMinutes = 24 * 60;
+  let earlyTerm = null;
+  for (let t of terms) {
+    const m = timeToMinutes(t.start);
+    if (m < earliestMinutes) {
+      earliestMinutes = m;
+      earlyTerm = t;
+    }
+  }
+
+  // Wenn der Termin vor 08:30 liegt, Wecker früher stellen (Morgenroutine mind. 40 Min Vorlauf)
+  if (earliestMinutes < timeToMinutes("08:30")) {
+    const wakeupMin = earliestMinutes - 45; // 45 Min Aufstehen, Waschen, Vorbereiten
+    const wakeupTime = minutesToTime(wakeupMin);
+
+    // Schlafzeit berechnen: Vorabend Schlafen war um 23:00 (1380 Min)
+    // Schlafstunden = (24*60 - 23*60) + wakeupMin = 60 + wakeupMin
+    const sleepDurationMin = 60 + wakeupMin;
+    const sleepHours = (sleepDurationMin / 60).toFixed(1);
+
+    banner.classList.add('show');
+    title.innerHTML = `⏰ Wecker stellen auf ${wakeupTime} Uhr!`;
+
+    if (sleepDurationMin < 8 * 60) {
+      desc.innerHTML = `⚠️ <strong>Schlafwarnung:</strong> Nur ${sleepHours} Std. Schlaf (unter 8 Stunden)! Gehe am Vorabend früher schlafen oder plane Power-Nap ein.`;
+    } else {
+      desc.innerHTML = `Frühaufstehen für "${earlyTerm.title}". Schlafzeit: ${sleepHours} Std.`;
+    }
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+/**
+ * 6. UI RENDERING & INTERAKTION
+ */
+function render() {
+  const dateStr = getIsoDate(state.selectedDate);
+  const dayData = ensureDayPlan(dateStr);
+
+  // Datum & Header Text
+  const options = { weekday: 'long', day: 'numeric', month: 'short' };
+  document.getElementById('currentDateStr').textContent = state.selectedDate.toLocaleDateString('de-DE', options);
+  document.getElementById('timelineTitle').textContent = `Zeitplan (${DOW_FULL[state.selectedDate.getDay()]})`;
+
+  // Wochenleiste
+  renderWeekBar();
+
+  // Timeline Blöcke rendern
+  const timelineEl = document.getElementById('timelineList');
+  timelineEl.innerHTML = '';
+
+  dayData.blocks.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const isToday = getIsoDate(new Date()) === dateStr;
+
+  dayData.blocks.forEach(block => {
+    const bStart = timeToMinutes(block.start);
+    const bEnd = timeToMinutes(block.end);
+    const isCurrent = isToday && nowMin >= bStart && nowMin < bEnd;
+
+    const card = document.createElement('div');
+    card.className = `task-card ${block.done ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`;
+
+    card.innerHTML = `
+      <div class="cat-indicator cat-${block.category}"></div>
+      <div class="t-main" onclick="toggleTaskDone('${block.id}')">
+        <div class="t-time">${block.start} – ${block.end}</div>
+        <div class="t-name">${block.title}</div>
+        <span class="t-badge cat-${block.category}">${block.category}</span>
+      </div>
+      <div class="t-actions">
+        <button class="skip-btn" title="Auslassen" onclick="skipBlock('${block.id}')">✕</button>
+        <button class="chk-btn ${block.done ? 'checked' : ''}" title="Abhaken" onclick="toggleTaskDone('${block.id}')">✓</button>
+      </div>
+    `;
+    timelineEl.appendChild(card);
+  });
+
+  document.getElementById('blockCount').textContent = `${dayData.blocks.length} Blöcke`;
+
+  // Heute nicht im Plan (Dropped / Skipped)
+  const droppedSec = document.getElementById('droppedSection');
+  const droppedList = document.getElementById('droppedList');
+  droppedList.innerHTML = '';
+
+  if (dayData.dropped && dayData.dropped.length > 0) {
+    droppedSec.style.display = 'block';
+    document.getElementById('droppedCount').textContent = dayData.dropped.length;
+
+    dayData.dropped.forEach((drop, idx) => {
+      const item = document.createElement('div');
+      item.className = 'dropped-item';
+      item.innerHTML = `
+        <div>
+          <strong>${drop.title}</strong>
+          <div style="font-size:0.75rem; color:var(--text-muted);">${drop.dropReason || 'Ausgelassen'}</div>
+        </div>
+        <button class="restore-btn" onclick="restoreBlock(${idx})">Zurückholen</button>
+      `;
+      droppedList.appendChild(item);
+    });
+  } else {
+    droppedSec.style.display = 'none';
+  }
+
+  updateNowCard();
+  checkEarlyWakeup(dateStr);
+}
+
+function renderWeekBar() {
+  const bar = document.getElementById('weekBar');
+  bar.innerHTML = '';
+
+  // Berechne Montag der aktuellen Woche
+  const current = new Date(state.selectedDate);
+  const dayOfWeek = current.getDay();
+  const diffToMonday = (dayOfWeek + 6) % 7;
+  const monday = new Date(current);
+  monday.setDate(current.getDate() - diffToMonday);
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+
+    const pill = document.createElement('div');
+    const isSelected = getIsoDate(d) === getIsoDate(state.selectedDate);
+    pill.className = `day-pill ${isSelected ? 'active' : ''}`;
+
+    const dowIndex = d.getDay();
+    pill.innerHTML = `
+      <span class="dow">${DOW_NAMES[dowIndex]}</span>
+      <span class="dom">${d.getDate()}</span>
+    `;
+
+    pill.onclick = () => {
+      state.selectedDate = d;
+      render();
+    };
+
+    bar.appendChild(pill);
+  }
+}
+
+function updateNowCard() {
+  const dateStr = getIsoDate(state.selectedDate);
+  const dayData = ensureDayPlan(dateStr);
+  const now = new Date();
+  const isToday = getIsoDate(now) === dateStr;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (!isToday) {
+    document.getElementById('nowTitle').textContent = `Vorschau: ${DOW_FULL[state.selectedDate.getDay()]}`;
+    document.getElementById('nowTimes').textContent = "Ganztägige Ansicht";
+    document.getElementById('nowCountdown').textContent = "Inaktiv";
+    document.getElementById('nextTitle').textContent = dayData.blocks[0] ? dayData.blocks[0].title : "--";
+    return;
+  }
+
+  let currentBlock = null;
+  let nextBlock = null;
+
+  for (let i = 0; i < dayData.blocks.length; i++) {
+    const b = dayData.blocks[i];
+    const s = timeToMinutes(b.start);
+    const e = timeToMinutes(b.end);
+
+    if (nowMinutes >= s && nowMinutes < e) {
+      currentBlock = b;
+      nextBlock = dayData.blocks[i + 1] || null;
+      break;
+    }
+  }
+
+  if (currentBlock) {
+    document.getElementById('nowTitle').textContent = currentBlock.title;
+    document.getElementById('nowTimes').textContent = `${currentBlock.start} – ${currentBlock.end}`;
+    const remain = timeToMinutes(currentBlock.end) - nowMinutes;
+    document.getElementById('nowCountdown').textContent = `noch ${remain} Min.`;
+    document.getElementById('nextTitle').textContent = nextBlock ? `${nextBlock.title} (${nextBlock.start})` : "Schlafen / Feierabend";
+  } else {
+    // Suche nächsten anstehenden Block heute
+    const upcoming = dayData.blocks.filter(b => timeToMinutes(b.start) > nowMinutes);
+    if (upcoming.length > 0) {
+      document.getElementById('nowTitle').textContent = "Pause / Freizeit";
+      document.getElementById('nowTimes').textContent = `bis ${upcoming[0].start}`;
+      const diff = timeToMinutes(upcoming[0].start) - nowMinutes;
+      document.getElementById('nowCountdown').textContent = `in ${diff} Min. geht's weiter`;
+      document.getElementById('nextTitle').textContent = `${upcoming[0].title} (${upcoming[0].start})`;
+    } else {
+      document.getElementById('nowTitle').textContent = "Schlafenszeit / Tag beendet";
+      document.getElementById('nowTimes').textContent = "23:00 – 07:00";
+      document.getElementById('nowCountdown').textContent = "Erholung";
+      document.getElementById('nextTitle').textContent = "Gute Nacht!";
+    }
+  }
+}
+
+// Block Aktionen
+function toggleTaskDone(id) {
+  const dayData = ensureDayPlan(getIsoDate(state.selectedDate));
+  const b = dayData.blocks.find(x => x.id === id);
+  if (b) {
+    b.done = !b.done;
+    saveStorage();
+    render();
+  }
+}
+
+function skipBlock(id) {
+  const dayData = ensureDayPlan(getIsoDate(state.selectedDate));
+  const idx = dayData.blocks.findIndex(x => x.id === id);
+  if (idx !== -1) {
+    const removed = dayData.blocks.splice(idx, 1)[0];
+    dayData.dropped.push({ ...removed, dropReason: 'Manuell ausgelassen' });
+    saveStorage();
+    render();
+  }
+}
+
+function restoreBlock(dropIdx) {
+  const dayData = ensureDayPlan(getIsoDate(state.selectedDate));
+  const item = dayData.dropped.splice(dropIdx, 1)[0];
+  delete item.dropReason;
+  dayData.blocks.push(item);
+  saveStorage();
+  rescheduleDay(getIsoDate(state.selectedDate));
+}
+
+function fillExample(txt) {
+  document.getElementById('aiInput').value = txt;
+}
+
+// Formular-Submit
+function handleAiSubmit(e) {
+  e.preventDefault();
+  const inp = document.getElementById('aiInput');
+  const txt = inp.value.trim();
+  if (txt) {
+    processCommand(txt);
+    inp.value = '';
+  }
+}
+
+/**
+ * 7. SPRACHEINGABE (WEB SPEECH API)
+ */
+const micBtn = document.getElementById('micBtn');
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'de-DE';
+  recognition.continuous = false;
+
+  micBtn.onclick = () => {
+    micBtn.classList.add('listening');
+    document.getElementById('aiStatus').textContent = 'Höre zu... Sprich jetzt!';
+    recognition.start();
+  };
+
+  recognition.onresult = (evt) => {
+    const transcript = evt.results[0][0].transcript;
+    document.getElementById('aiInput').value = transcript;
+    micBtn.classList.remove('listening');
+    processCommand(transcript);
+  };
+
+  recognition.onerror = () => {
+    micBtn.classList.remove('listening');
+    document.getElementById('aiStatus').textContent = 'Sprachfehler. Bitte tippen.';
+  };
+
+  recognition.onend = () => {
+    micBtn.classList.remove('listening');
+  };
+} else {
+  micBtn.style.display = 'none';
+}
+
+/**
+ * 8. THEME & SETTINGS
+ */
+function applyTheme(theme) {
+  state.theme = theme;
+  localStorage.setItem('app_theme', theme);
+  if (theme === 'light') {
+    document.body.classList.add('light');
+    document.getElementById('theme-color-meta').setAttribute('content', '#f8fafc');
+  } else {
+    document.body.classList.remove('light');
+    document.getElementById('theme-color-meta').setAttribute('content', '#0f172a');
+  }
+}
+
+document.getElementById('themeToggle').onclick = () => {
+  applyTheme(state.theme === 'light' ? 'dark' : 'light');
+};
+
+function toggleSettings(show) {
+  const modal = document.getElementById('settingsModal');
+  if (show) {
+    document.getElementById('apiKeyInput').value = state.apiKey;
+    modal.classList.add('show');
+  } else {
+    modal.classList.remove('show');
+  }
+}
+document.getElementById('settingsBtn').onclick = () => toggleSettings(true);
+
+function saveSettings() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  state.apiKey = key;
+  localStorage.setItem('gemini_api_key', key);
+  toggleSettings(false);
+  alert('Einstellungen gespeichert!');
+}
+
+function resetCurrentDay() {
+  if (confirm("Möchtest du diesen Tag auf die Wochenvorlage zurücksetzen?")) {
+    const dateStr = getIsoDate(state.selectedDate);
+    delete state.plans[dateStr];
+    ensureDayPlan(dateStr);
+    toggleSettings(false);
+    render();
+  }
+}
+
+function resetAllDefaults() {
+  if (confirm("Wirklich die gesamte Woche löschen und Vorlagen neu laden?")) {
+    localStorage.removeItem('daily_planner_state_v1');
+    state.plans = {};
+    ensureDayPlan(getIsoDate(state.selectedDate));
+    toggleSettings(false);
+    render();
+  }
+}
+
+// Live-Ticker für Countdown & "Jetzt"-Karte (jede Sekunde)
+setInterval(() => {
+  updateNowCard();
+}, 1000);
+
+// Initiale Ausführung
+loadStorage();
+applyTheme(state.theme);
+render();
+
+// Service Worker Registration für vollständige PWA-Offline-Nutzung
+if ('serviceWorker' in navigator) {
+  const swScript = `
+    self.addEventListener('install', e => self.skipWaiting());
+    self.addEventListener('activate', e => clients.claim());
+    self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+  `;
+  const blob = new Blob([swScript], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+}
+</script>
+</body>
+</html>
